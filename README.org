@@ -1,0 +1,38 @@
+* ~hpc_cluster~
+~hpc_cluster~ is my private library to make it easy to run jobs on the
+cluster. Currently it focuses on Grid Search over parameters but might
+be generalise to other things in time.
+
+The library assumes that your project have the following directories:
+- ~job_submission_files_dir~ :: directory where submission files for
+     jobs are located (this acts as a temporary directory where the
+     created job submission files are written to)
+- ~job_output_dir~ :: directory where we write the results to, each job
+     creates a new directory named after the script which is used to
+     create the results. In an array job, task ~$ID~ is written to the
+     directory ~job_output_dir/$script_name/n$ID~. This may hold
+     arbitrary results depending on the script (for example, curves,
+     scalar loss, objects etc.).
+- ~interim_data_dir~ :: each job type defines a class which given
+     arguments create a full CSV (or TVS) saved to ~interim_data_dir~
+     called ~interim_data_dir/$script_name.csv~ in
+     addition to the shell job file.
+
+** What the script need to do
+The created job file runs the following after all parameters have been
+set up
+#+BEGIN_EXAMPLE sh
+{program} {script_path} --csv_path {csv_path} --extract_line ${{SGE_TASK_ID}} --output_dir ${{RUN_OUTPUT_DIR}}
+#+END_EXAMPLE
+where all standins have been defined and taken care of by the class.
+This means that the script will have to handle the following command
+line arguments
+- ~csv_path~ :: path to the csv files of the parameters in csv form
+                (created by class)
+- ~extract_line~ :: what line to extract from the passed csv file
+                    (1-indexed)
+- ~output_dir~ :: where to save results to
+
+In addition to this, depending on the type of job run, the script will
+have to save the results in a format that can be read by the
+aggregating functions and classes of the library.
