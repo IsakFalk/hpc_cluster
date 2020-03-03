@@ -19,8 +19,8 @@ ARRAY_JOB_TEMPLATE = """
 #$ -wd {working_dir}
 
 CURRENT_JOB_OUTPUT_DIR={job_output_dir}/{script_name}
-mkdir -p ${{CURRENT_JOB_OUTPUT_DIR}}
 RUN_OUTPUT_DIR=${{CURRENT_JOB_OUTPUT_DIR}}/n${{SGE_TASK_ID}}
+mkdir -p ${{RUN_OUTPUT_DIR}}
 
 # Please export necessary libraries, for example
 source {source_path}
@@ -157,7 +157,7 @@ def _from_dict_to_long_df_format(param_dict):
 
     param_grid = ParameterGrid(param_dict)
     for row in param_grid:
-        for key, val in row.items():
+        for key, val in row.items():p
             df_dict[key].append(val)
     return pd.DataFrame.from_dict(df_dict)
 
