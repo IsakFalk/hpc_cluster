@@ -157,7 +157,7 @@ def _from_dict_to_long_df_format(param_dict):
 
     param_grid = ParameterGrid(param_dict)
     for row in param_grid:
-        for key, val in row.items():p
+        for key, val in row.items():
             df_dict[key].append(val)
     return pd.DataFrame.from_dict(df_dict)
 
