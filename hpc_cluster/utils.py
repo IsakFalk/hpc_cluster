@@ -23,7 +23,7 @@ mkdir -p ${{CURRENT_JOB_OUTPUT_DIR}}
 RUN_OUTPUT_DIR=${{CURRENT_JOB_OUTPUT_DIR}}/n${{SGE_TASK_ID}}
 
 # Please export necessary libraries, for example
-source ../project.source
+source {source_path}
 
 hostname
 date
@@ -37,6 +37,7 @@ class ArrayJob:
         self,
         param_dict,
         working_dir,
+        source_path,
         script_path,
         job_submission_files_dir,
         job_output_dir,
@@ -53,6 +54,7 @@ class ArrayJob:
         to search over
         :param script_path: path to script that will be run over combinations of parameters
         :param working_dir: working directory to run job from
+        :param source_path: path to source file (to source software)
         :param job_submission_files_dir: path to directory where job submission file will be written to
         :param job_output_dir: path to directory where the job will write data to
         :param interim_data_dir: path to directory where interim data will be saved and later read from
@@ -64,6 +66,7 @@ class ArrayJob:
         """
         self.param_dict = param_dict
         self.working_dir = Path(working_dir)
+        self.source_path = Path(source_path)
 
         self.script_path = Path(script_path).resolve()
         self.script_name = self.script_path.stem
@@ -110,6 +113,7 @@ class ArrayJob:
                 working_dir=str(self.working_dir),
                 script_name=str(self.script_name),
                 job_output_dir=str(self.job_output_dir),
+                source_path=str(self.source_path),
                 program=self.program,
                 script_path=str(self.script_path),
                 csv_path=str(self.csv_path),
@@ -127,6 +131,7 @@ class ArrayJob:
                 working_dir=str(self.working_dir),
                 script_name=str(self.script_name),
                 job_output_dir=str(self.job_output_dir),
+                source_path=str(self.source_path),
                 program=self.program,
                 script_path=str(self.script_path),
                 csv_path=str(self.csv_path),
