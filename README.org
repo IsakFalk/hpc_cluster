@@ -36,3 +36,9 @@ line arguments
 In addition to this, depending on the type of job run, the script will
 have to save the results in a format that can be read by the
 aggregating functions and classes of the library.
+
+** TODO
+:LOGBOOK:
+- State "TODO"       from              [2020-03-03 Tue 14:12]
+:END:
+- Create top class that all other jobs inherit from
