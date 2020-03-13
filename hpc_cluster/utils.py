@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -22,7 +23,7 @@ CURRENT_JOB_OUTPUT_DIR={job_output_dir}/{script_name}
 RUN_OUTPUT_DIR=${{CURRENT_JOB_OUTPUT_DIR}}/n${{SGE_TASK_ID}}
 mkdir -p ${{RUN_OUTPUT_DIR}}
 
-# Please export necessary libraries, for example
+# Please export necessary libraries
 source {source_path}
 
 hostname
@@ -41,7 +42,6 @@ class ArrayJob:
         script_path,
         job_submission_files_dir,
         job_output_dir,
-        interim_data_dir,
         program,
         tmem,
         h_vmem,
@@ -51,13 +51,12 @@ class ArrayJob:
     ):
         """
         :param param_dict: dictionary of parameters, where keys correspond to parameter name and values of objects
-        to search over
-        :param script_path: path to script that will be run over combinations of parameters
+        to search over, with values as list
         :param working_dir: working directory to run job from
+        :param script_path: path to script that will be run over combinations of parameters
         :param source_path: path to source file (to source software)
         :param job_submission_files_dir: path to directory where job submission file will be written to
         :param job_output_dir: path to directory where the job will write data to
-        :param interim_data_dir: path to directory where interim data will be saved and later read from
         :param program: program to run on script
         :param tmem: scheduler FLAG, amount of memory to reserve
         :param h_vmem: scheduler FLAG, memory limit, jobs using more memory will be killed
@@ -65,6 +64,7 @@ class ArrayJob:
         :param gpu: scheduler FLAG, reserve GPU for job
         """
         self.param_dict = param_dict
+        self.param_flattened_df = _from_dict_to_long_df_format(self.param_dict)
         self.working_dir = Path(working_dir)
         self.source_path = Path(source_path)
 
@@ -74,7 +74,9 @@ class ArrayJob:
 
         self.job_submission_files_dir = Path(job_submission_files_dir).resolve()
         self.job_output_dir = Path(job_output_dir).resolve()
-        self.interim_data_dir = Path(interim_data_dir).resolve()
+        self.current_job_dir = self.job_output_dir / self.script_name
+        self.current_job_dir.resolve().mkdir(parents=True, exist_ok=True)
+        self.csv_path = self.current_job_dir / "parameters_flat.csv"
 
         self.program = program
         self.tmem = tmem
@@ -86,18 +88,12 @@ class ArrayJob:
 
         # This order is mandatory
         self._save_parameters_to_csv()
+        self._dump_metadata_to_current_job_dir()
         self._create_job_template()
         self._write_job_submission_file()
 
-    def _save_parameters_to_csv(self):
-        self.csv_path = self.interim_data_dir / (self.script_name + ".csv")
-        self.grid_flattened_df = _from_dict_to_long_df_format(self.param_dict)
-        self.grid_flattened_df.to_csv(
-            path_or_buf=self.csv_path, sep=self.sep, index=False,
-        )
-
     def _create_job_template(self):
-        nrows, ncols = self.grid_flattened_df.shape
+        nrows, _ = self.param_flattened_df.shape
         # -t gpu=false does not exist, absence of flag means don't use gpu
         # if we use gpu, we need to remove h_vmem flag
         # TODO: Should probably do this in a smarter way
@@ -138,9 +134,17 @@ class ArrayJob:
             )
 
     def _write_job_submission_file(self):
-        self._create_job_template()
         with open(self.job_submission_files_dir / (self.script_name + ".sh"), "w") as f:
             f.write(self.filled_in_job_template)
+
+    def _dump_metadata_to_current_job_dir(self):
+        with open(self.current_job_dir / "parameters.json", "w") as f:
+            json.dump(self.param_dict, f, indent=4)
+
+    def _save_parameters_to_csv(self):
+        self.param_flattened_df.to_csv(
+            path_or_buf=self.csv_path, sep=self.sep,
+        )
 
 
 def _from_dict_to_long_df_format(param_dict):
@@ -164,12 +168,12 @@ def _from_dict_to_long_df_format(param_dict):
 
 def save_csv_grid(param_grid, path, sep="\t"):
     _from_dict_to_long_df_format(param_grid).to_csv(
-        path_or_buf=path, sep=sep, index=False,
+        path_or_buf=path, sep=sep,
     )
 
 
 def extract_csv_to_dict(path, extract_line, sep="\t"):
     assert extract_line > 0
-    df = pd.read_csv(path, sep=sep)
+    df = pd.read_csv(path, sep=sep, index_col=0)
     dd = df.to_dict("records")[extract_line - 1]
     return dd
