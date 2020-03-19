@@ -4,7 +4,7 @@
 # through ssh
 
 #$ -l tmem=4G
-#$ -l h_mem=4G
+#$ -l h_vmem=4G
 #$ -l h_rt=00:05:00
 #$ -j y
 #$ -S /bin/bash
