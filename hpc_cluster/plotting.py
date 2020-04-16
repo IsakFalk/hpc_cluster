@@ -123,3 +123,101 @@ class GridPlot:
         if not self._plotted:
             self.plot()
         self.fig.savefig(savepath, **savefig_kwargs)
+
+class AggregatePlot:
+    """Plot an aggregate of the data of N jobs 
+
+    For an array job with N jobs, plot some aggregate of the data
+    in one plot."""
+    
+    data_dir_match_regexp = r"n[1-9]\d*"
+    
+    def __init__(self,
+                 experiment_dir,
+                 preprocess_func,
+                 aggregate_func,
+                 plot_func,
+                 ax=None,
+                 **subplots_kwargs):
+        """
+        :param experiment_dir: (pathlib.Path) path to the output of array job
+        :param preprocess_func: (func) function for preprocessing the data and parameters from one task of the array job
+        :param aggregate_func: (func) function for aggregating all of the preprocessed data
+        :param plot_func: (func) function for plotting the aggregated data
+        :param ax: (mpl.Axis) if None, we make a new (fig, ax) pair, else plot on this
+        """
+        self.experiment_dir = experiment_dir
+        self.preprocess_func = preprocess_func
+        self.aggregate_func = aggregate_func
+        self.plot_func = plot_func
+        self._internal_fig = False
+        if ax is None:
+            fig, ax = plt.subplots(nrows=1, ncols=1, **subplots_kwargs)
+            self._internal_fig = True
+        self.fig = fig
+        self.ax = ax
+
+        self._find_data_dirs()
+        self.n_data_dirs = len(self.data_dirs)
+
+        self._plotted = False
+        
+    def _find_data_dirs(self):
+        """Walk experiment_dir to find data dirs
+
+        We assume that the data-dirs live immediately
+        below experiment_dir."""
+        self.data_dirs = []
+        for root, dirs, files in os.walk(self.experiment_dir):
+            for dir in dirs:
+                if re.match(self.data_dir_match_regexp, str(dir)):
+                    self.data_dirs.append(Path(root) / Path(dir))
+            break
+        # Preliminarily sort by n{digit}
+        self.data_dirs = sorted(self.data_dirs, key=lambda relative_dir: int(relative_dir.name.replace("n", "")))
+        assert len(self.data_dirs) != 0, "Make sure there are at least one data directory in the experiment_dir"
+        
+    @staticmethod        
+    def _read_data_dir(data_dir):
+        """Read experiment_data.hkl and parameters.hkl from data_dir"""
+        experiment_data = hkl.load(data_dir / 'experiment_data.hkl')
+        parameters = hkl.load(data_dir / 'parameters.hkl')
+        return experiment_data, parameters
+
+    def _preprocess_data(self):
+        """Preprocess all of the read data"""
+        self.preprocessed_data = []
+        self.parameters = []
+        for data_dir in self.data_dirs:            
+            experiment_data, parameters = self._read_data_dir(data_dir)
+            preprocessed_data = self.preprocess_func(experiment_data, parameters)
+            self.preprocessed_data.append(preprocessed_data)
+            self.parameters.append(parameters)
+            
+    def _aggregate_data(self):
+        """Read and aggregate all data"""
+        self.aggregated_data = self.aggregate_func(self.preprocessed_data, self.parameters)
+            
+    def plot(self, **subplots_kwargs):
+        """Plot the result from reading, preprocessing and aggregating data"""
+        self._preprocess_data()
+        self._aggregate_data()
+        self.plot_func(self.aggregated_data, self.ax)
+
+    def savefig(self, savepath, **savefig_kwargs):
+        """Save figure
+
+        Note that this class can be used to plot aggregated statistics in a
+        grid by having an external fig, ax = plt.subplots(n, m) and each ax[i, j]
+        associated with some aggregated plot. This way you can create m * n AggregatePlot
+        instances, each with an individual function and experiment arguments and with
+        ax[i, j] passed in the construction through ax=ax[i, j].
+
+        In the above case we do not save as it has to be done externally."""
+        if not self._internal_fig:
+            logging.warning("Not saving figure as no figure associated with this object. Please save it from the created fig object instead.")
+        elif not self._plotted:
+            self.plot()
+            self.fig.savefig(savepath, **savefig_kwargs)
+        elif self._plotted:
+            self.fig.savefig(savepath, **savefig_kwargs)
