@@ -19,22 +19,25 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import hickle as hkl
 
+
 class GridPlot:
     """Plot the result of an array-job in a grid
 
     For an array job with N jobs, plot the jobs in a
     grid."""
-    
+
     data_dir_match_regexp = r"n[1-9]\d*"
-    
-    def __init__(self,
-                 experiment_dir,
-                 preprocess_func,
-                 plot_func,
-                 figtitle=None,
-                 nrows=None,
-                 ncols=None,
-                 force_balanced_layout=False):
+
+    def __init__(
+        self,
+        experiment_dir,
+        preprocess_func,
+        plot_func,
+        figtitle=None,
+        nrows=None,
+        ncols=None,
+        force_balanced_layout=False,
+    ):
         """
         :param experiment_dir: (pathlib.Path) path to the output of array job
         :param preprocess_func: (func) function for preprocessing the data and parameters from one task of the array job
@@ -58,7 +61,7 @@ class GridPlot:
         self._check_layout()
 
         self._plotted = False
-        
+
     def _find_data_dirs(self):
         """Walk experiment_dir to find data dirs
 
@@ -71,8 +74,13 @@ class GridPlot:
                     self.data_dirs.append(Path(root) / Path(dir))
             break
         # Preliminarily sort by n{digit}
-        self.data_dirs = sorted(self.data_dirs, key=lambda relative_dir: int(relative_dir.name.replace("n", "")))
-        assert len(self.data_dirs) != 0, "Make sure there are at least one data directory in the experiment_dir"
+        self.data_dirs = sorted(
+            self.data_dirs,
+            key=lambda relative_dir: int(relative_dir.name.replace("n", "")),
+        )
+        assert (
+            len(self.data_dirs) != 0
+        ), "Make sure there are at least one data directory in the experiment_dir"
 
     def _autoset_layout(self):
         """If nrows or ncols are None, we make this grid in a smart way"""
@@ -85,20 +93,24 @@ class GridPlot:
         elif self.ncols is None:
             div, rem = divmod(self.n_data_dirs, self.nrows)
             self.ncols = div + math.ceil(rem / self.nrows)
-        
+
     def _check_layout(self):
         """Fail if layout is misspecified"""
-        assert self.nrows * self.ncols >= len(self.data_dirs), "Number of spaces in grid must be more than number of data dirs"
+        assert self.nrows * self.ncols >= len(
+            self.data_dirs
+        ), "Number of spaces in grid must be more than number of data dirs"
         if self.force_balanced_layout:
-            assert self.nrows * self.ncols == len(self.data_dirs), "force_balanced_layout == True: the data directories does not fill axis grid."
+            assert self.nrows * self.ncols == len(
+                self.data_dirs
+            ), "force_balanced_layout == True: the data directories does not fill axis grid."
 
-    @staticmethod        
+    @staticmethod
     def _read_data_dir(data_dir):
         """Read experiment_data.hkl and parameters.hkl from data_dir"""
-        experiment_data = hkl.load(data_dir / 'experiment_data.hkl')
-        parameters = hkl.load(data_dir / 'parameters.hkl')
+        experiment_data = hkl.load(data_dir / "experiment_data.hkl")
+        parameters = hkl.load(data_dir / "parameters.hkl")
         return experiment_data, parameters
-            
+
     def plot(self, tight_layout=False, **subplots_kwargs):
         """Plot the result from reading and preprocessing data dirs"""
         fig, ax = plt.subplots(nrows=self.nrows, ncols=self.ncols, **subplots_kwargs)
@@ -124,21 +136,24 @@ class GridPlot:
             self.plot()
         self.fig.savefig(savepath, **savefig_kwargs)
 
+
 class AggregatePlot:
     """Plot an aggregate of the data of N jobs 
 
     For an array job with N jobs, plot some aggregate of the data
     in one plot."""
-    
+
     data_dir_match_regexp = r"n[1-9]\d*"
-    
-    def __init__(self,
-                 experiment_dir,
-                 preprocess_func,
-                 aggregate_func,
-                 plot_func,
-                 ax=None,
-                 **subplots_kwargs):
+
+    def __init__(
+        self,
+        experiment_dir,
+        preprocess_func,
+        aggregate_func,
+        plot_func,
+        ax=None,
+        **subplots_kwargs
+    ):
         """
         :param experiment_dir: (pathlib.Path) path to the output of array job
         :param preprocess_func: (func) function for preprocessing the data and parameters from one task of the array job
@@ -161,7 +176,7 @@ class AggregatePlot:
         self.n_data_dirs = len(self.data_dirs)
 
         self._plotted = False
-        
+
     def _find_data_dirs(self):
         """Walk experiment_dir to find data dirs
 
@@ -174,30 +189,37 @@ class AggregatePlot:
                     self.data_dirs.append(Path(root) / Path(dir))
             break
         # Preliminarily sort by n{digit}
-        self.data_dirs = sorted(self.data_dirs, key=lambda relative_dir: int(relative_dir.name.replace("n", "")))
-        assert len(self.data_dirs) != 0, "Make sure there are at least one data directory in the experiment_dir"
-        
-    @staticmethod        
+        self.data_dirs = sorted(
+            self.data_dirs,
+            key=lambda relative_dir: int(relative_dir.name.replace("n", "")),
+        )
+        assert (
+            len(self.data_dirs) != 0
+        ), "Make sure there are at least one data directory in the experiment_dir"
+
+    @staticmethod
     def _read_data_dir(data_dir):
         """Read experiment_data.hkl and parameters.hkl from data_dir"""
-        experiment_data = hkl.load(data_dir / 'experiment_data.hkl')
-        parameters = hkl.load(data_dir / 'parameters.hkl')
+        experiment_data = hkl.load(data_dir / "experiment_data.hkl")
+        parameters = hkl.load(data_dir / "parameters.hkl")
         return experiment_data, parameters
 
     def _preprocess_data(self):
         """Preprocess all of the read data"""
         self.preprocessed_data = []
         self.parameters = []
-        for data_dir in self.data_dirs:            
+        for data_dir in self.data_dirs:
             experiment_data, parameters = self._read_data_dir(data_dir)
             preprocessed_data = self.preprocess_func(experiment_data, parameters)
             self.preprocessed_data.append(preprocessed_data)
             self.parameters.append(parameters)
-            
+
     def _aggregate_data(self):
         """Read and aggregate all data"""
-        self.aggregated_data = self.aggregate_func(self.preprocessed_data, self.parameters)
-            
+        self.aggregated_data = self.aggregate_func(
+            self.preprocessed_data, self.parameters
+        )
+
     def plot(self, **subplots_kwargs):
         """Plot the result from reading, preprocessing and aggregating data"""
         self._preprocess_data()
@@ -215,9 +237,12 @@ class AggregatePlot:
 
         In the above case we do not save as it has to be done externally."""
         if not self._internal_fig:
-            logging.warning("Not saving figure as no figure associated with this object. Please save it from the created fig object instead.")
+            logging.warning(
+                "Not saving figure as no figure associated with this object. Please save it from the created fig object instead."
+            )
         elif not self._plotted:
             self.plot()
             self.fig.savefig(savepath, **savefig_kwargs)
         elif self._plotted:
+
             self.fig.savefig(savepath, **savefig_kwargs)
